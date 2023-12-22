@@ -1,40 +1,32 @@
+require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const PhoneBook = require("./modules/phoneBook");
+const mongoose = require("mongoose");
 
 const app = express();
-app.use(cors());
 
+// USE ERRORS MIDLEWARE
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
+  }
+
+  next(error);
+};
+
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: "unknown endpoint" });
+};
+
+app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
-
-let persons = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-  {
-    id: 5,
-    name: "Xhoi Kabashi",
-    number: "39-23-6423122",
-  },
-];
 
 // Get HI
 app.get("/", (request, response) => {
@@ -42,74 +34,98 @@ app.get("/", (request, response) => {
 });
 
 // Get all data
-app.get("/api/persons", (request, response) => {
-  response.json(persons);
+app.get("/api/persons", (request, response, next) => {
+  PhoneBook.find({})
+    .then((phoneBook) => {
+      if (phoneBook) {
+        response.json(phoneBook);
+      } else {
+        response.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
 });
 
 // Get only one data
-app.get("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
-
-  const person = persons.find((p) => p.id === id);
-
-  if (person) {
-    response.json(person);
-  } else {
-    response.status(404).json({ error: "Person not found" });
-  }
+app.get("/api/persons/:id", (request, response, next) => {
+  PhoneBook.findById(request.params.id)
+    .then((phoneBook) => {
+      if (phoneBook) {
+        response.json(phoneBook);
+      } else {
+        response.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
 });
 // Delete data
 
 app.delete("/api/persons/:id", (request, response) => {
-  const deletedID = Number(request.params.id);
+  const deletedID = request.params.id;
 
-  persons = persons.filter((p) => p.id !== deletedID);
-  response.status(204).end();
+  PhoneBook.findByIdAndDelete(deletedID)
+    .then((deletedPerson) => {
+      if (!deletedPerson) {
+        return response.status(404).json({
+          error: "Person not found",
+        });
+      }
+
+      console.log(`Deleted person with ID: ${deletedID}`);
+      response.status(204).end();
+    })
+    .catch((error) => {
+      console.error("Error deleting person:", error);
+      response.status(500).json({
+        error: "Internal server error",
+      });
+    });
 });
 
-// Create Data
-const randomID = Math.floor(Math.random() * 1000000);
-
-app.post("/api/persons", (request, response) => {
+app.post("/api/persons", (request, response, next) => {
   const data = request.body;
+
   if (!data.name || !data.number) {
     return response.status(400).json({
       error: "Add data",
     });
   }
 
-  const nameExists = persons.find((person) => person.name === data.name);
-  const numberExists = persons.find((person) => person.number === data.number);
-  if (nameExists) {
-    return response.status(400).json({
-      error: "Name  already exists",
-    });
-  }
-  if (numberExists) {
-    return response.status(400).json({
-      error: "Number  already exists",
-    });
-  }
-
-  const person = {
-    id: randomID,
-    name: data.name,
-    number: data.number,
-  };
-
-  persons = persons.concat(person);
-  console.log(data);
-  response.json(person);
+  PhoneBook.findOne({ name: data.name })
+    .then((existingName) => {
+      if (existingName) {
+        // Update the number for the existing name
+        return PhoneBook.findOneAndUpdate(
+          { name: data.name },
+          { number: data.number },
+          { new: true }
+        );
+      } else {
+        // Create a new entry
+        const phoneBook = new PhoneBook({
+          name: data.name,
+          number: data.number,
+        });
+        return phoneBook.save();
+      }
+    })
+    .then((updatedNote) => {
+      if (updatedNote) {
+        console.log("Updated", updatedNote);
+        response.json(updatedNote);
+      } else {
+        console.log(`Added ${data.name} number ${data.number} to phonebook`);
+        response.json({ message: "New entry added" });
+      }
+    })
+    .catch((error) => next(error));
 });
 
-// Get info
-app.get("/info", (request, response) => {
-  const todayDate = new Date();
+// USE ERRORS MIDLEWARE
+app.use(unknownEndpoint);
+app.use(errorHandler);
 
-  response.send(`<h3>This page have info for 2 persons</h3> ${todayDate}`);
-});
-
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

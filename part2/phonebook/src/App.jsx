@@ -15,7 +15,7 @@ const App = () => {
   const [deleteTrigger, setDeleteTrigger] = useState(0);
   const [errorMessage, setErrorMessage] = useState(null);
   const [color, setColor] = useState("green");
-
+  console.log(color);
   useEffect(() => {
     apiService.getAll().then((response) => {
       const data = response.data;
@@ -57,6 +57,7 @@ const App = () => {
       } else {
         const newPerson = { name: newName, number: newNumber };
         await apiService.create(newPerson);
+        setColor("green");
         setErrorMessage(`Contact ${newPerson.name} added successfully`);
       }
 
@@ -68,8 +69,8 @@ const App = () => {
       setNewNumber("");
       setAddOrUpdateTrigger(addOrUpdateTrigger + 1); // Trigger useEffect
     } catch (error) {
+      setErrorMessage(error.response.data.error);
       setColor("red");
-      setErrorMessage(`Operation failed contact does not exist`);
       setTimeout(() => {
         setErrorMessage(null);
       }, 2000);

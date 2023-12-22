@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseurl = "https://phonebook-backend-srri.onrender.com/api/persons";
+const baseurl = "http://localhost:3001/api/persons";
 
 const getAll = () => {
   return axios.get(baseurl);

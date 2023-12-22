@@ -10,7 +10,7 @@ const Filter = ({ persons, search, text, handelingDelete }) => {
     <>
       <h4>{text}</h4>
       {filtered.map((person) => (
-        <p key={person.name}>
+        <p key={person.id}>
           {person.name} : {person.number}
           <button onClick={() => handelingDelete(person.id)}>Delete</button>
         </p>
