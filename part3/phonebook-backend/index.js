@@ -1,14 +1,15 @@
-require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
 const PhoneBook = require("./modules/phoneBook");
+const config = require("./utils/config");
+const logger = require("./utils/logger");
 
 const app = express();
 
 // USE ERRORS MIDLEWARE
 const errorHandler = (error, request, response, next) => {
-  console.error(error.message);
+  logger.error(error.message);
 
   if (error.name === "CastError") {
     return response.status(400).send({ error: "malformatted id" });
@@ -74,7 +75,7 @@ app.delete("/api/persons/:id", (request, response) => {
       response.status(204).end();
     })
     .catch((error) => {
-      console.error("Error deleting person:", error);
+      logger.error("Error deleting person:", error);
       response.status(500).json({
         error: "Internal server error",
       });
@@ -110,10 +111,10 @@ app.post("/api/persons", (request, response, next) => {
     })
     .then((updatedNote) => {
       if (updatedNote) {
-        console.log("Updated", updatedNote);
+        logger.info("Updated", updatedNote);
         response.json(updatedNote);
       } else {
-        console.log(`Added ${data.name} number ${data.number} to phonebook`);
+        logger.info(`Added ${data.name} number ${data.number} to phonebook`);
         response.json({ message: "New entry added" });
       }
     })
@@ -125,7 +126,7 @@ app.use(unknownEndpoint);
 app.use(errorHandler);
 
 // eslint-disable-next-line no-undef
-const PORT = process.env.PORT;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+
+app.listen(config.PORT, () => {
+  logger.info(`Server running on port ${config.PORT}`);
 });
